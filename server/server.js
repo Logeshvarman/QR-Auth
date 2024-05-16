@@ -1,87 +1,91 @@
 const express = require('express');
+const http = require('http'); // Import the http module
 const app = express();
-const ws = require('ws');
-const MongoClient = require('mongodb').MongoClient;
+const ws = require('websocket');
+const mongoose = require('mongoose');
+const User = require('./model/User');
 
 // MongoDB connection URL
-const mongoUrl = 'mongodb://localhost:27017';
-
-// MongoDB client
-let db;
-
-// WebSocket server
-const wss = new ws.Server({ port: 8080 });
+const mongoUrl = 'mongodb://localhost:27017/qr';
 
 // Connect to MongoDB
-MongoClient.connect(mongoUrl, function(err, client) {
-  if (err) throw err;
+mongoose.connect(mongoUrl, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true
+})
+.then(() => console.log("Connected to MongoDB"))
+.catch(err => console.error("Failed to connect to MongoDB", err));
 
-  db = client.db('mydb');
-  console.log("Connected to MongoDB");
-});
+// Create an HTTP server
+const server = http.createServer(app);
+
+// WebSocket server
+const wss = new ws.server({ httpServer: server }); // Attach WebSocket server to the HTTP server
 
 // WebSocket connection handler
-wss.on('connection', function connection(ws) {
-  ws.on('message', function incoming(message) {
-    handleMessage(ws, message);
+wss.on('request', function(request) {
+  const connection = request.accept(null, request.origin);
+  
+  connection.on('message', function(message) {
+    handleMessage(connection, message);
   });
 });
 
 // Message handler
-async function handleMessage(ws, message) {
-  const data = JSON.parse(message);
+async function handleMessage(connection, message) {
+  const data = JSON.parse(message.utf8Data);
 
   switch (data.type) {
     case 'login':
-      await handleLogin(ws, data.token, data.email, data.password);
+      await handleLogin(connection, data.token, data.email, data.password);
       break;
     case 'checkLoginStatus':
-      await checkLoginStatus(ws, data.token);
+      await checkLoginStatus(connection, data.token);
       break;
     case 'sendUserId':
-      await sendAuthToken(ws, data.userId);
+      await sendAuthToken(connection, data.userId);
       break;
     // Handle other message types
   }
 }
 
 // Handle login
-async function handleLogin(ws, token, email, password) {
+async function handleLogin(connection, token, email, password) {
   // Verify the login token, email, and password (e.g., check against database)
-  const user = await db.collection('users').findOne({ token, email, password });
+  const user = await User.findOne({ token, email, password });
 
   if (user) {
     const loginStatus = 'success';
-    ws.send(JSON.stringify({ type: 'loginStatus', status: loginStatus }));
+    connection.send(JSON.stringify({ type: 'loginStatus', status: loginStatus }));
   } else {
     const loginStatus = 'failed';
-    ws.send(JSON.stringify({ type: 'loginStatus', status: loginStatus }));
+    connection.send(JSON.stringify({ type: 'loginStatus', status: loginStatus }));
   }
 }
 
 // Check login status
-async function checkLoginStatus(ws, token) {
+async function checkLoginStatus(connection, token) {
   // Verify the login token (e.g., check against database)
-  const user = await db.collection('users').findOne({ token });
+  const user = await User.findOne({ token });
 
   if (user) {
     const loginStatus = 'success';
-    ws.send(JSON.stringify({ type: 'loginStatus', status: loginStatus }));
+    connection.send(JSON.stringify({ type: 'loginStatus', status: loginStatus }));
   } else {
     const loginStatus = 'failed';
-    ws.send(JSON.stringify({ type: 'loginStatus', status: loginStatus }));
+    connection.send(JSON.stringify({ type: 'loginStatus', status: loginStatus }));
   }
 }
 
 // Send authentication token
-async function sendAuthToken(ws, userId) {
+async function sendAuthToken(connection, userId) {
   // Generate an authentication token
   const authToken = generateAuthToken(userId);
 
   // Save the authentication token to the database
-  await db.collection('users').updateOne({ userId }, { $set: { authToken } });
+  await User.updateOne({ userId }, { $set: { authToken } });
 
-  ws.send(JSON.stringify({ type: 'authToken', token: authToken }));
+  connection.send(JSON.stringify({ type: 'authToken', token: authToken }));
 }
 
 // Generate authentication token (simplified example)
@@ -89,7 +93,7 @@ function generateAuthToken(userId) {
   return `${userId}_${Date.now()}`;
 }
 
-// Start the server
-app.listen(3000, () => {
-  console.log('Server started on port 3000');
+// Start the HTTP server
+server.listen(4000, () => {
+  console.log('Server started on port 4000');
 });
