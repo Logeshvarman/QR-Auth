@@ -94,6 +94,6 @@ function generateAuthToken(userId) {
 }
 
 // Start the HTTP server
-server.listen(4000, () => {
+server.listen(8080, () => {
   console.log('Server started on port 4000');
 });

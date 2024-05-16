@@ -9,7 +9,7 @@ function App() {
   const [loginStatus, setLoginStatus] = useState('');
 
   useEffect(() => {
-    const ws = new WebSocket('ws://localhost:4000');
+    const ws = new WebSocket('ws://localhost:8080');
 
     ws.onopen = () => {
       console.log('WebSocket connection opened');
@@ -42,21 +42,21 @@ function App() {
   }, []);
 
   const handleLogin = () => {
-    const ws = new WebSocket('ws://localhost:4000');
+    const ws = new WebSocket('ws://localhost:8080');
     ws.onopen = () => {
       ws.send(JSON.stringify({ type: 'login', token: loginToken }));
     };
   };
 
   const handleCheckLoginStatus = () => {
-    const ws = new WebSocket('ws://localhost:4000');
+    const ws = new WebSocket('ws://localhost:8080');
     ws.onopen = () => {
       ws.send(JSON.stringify({ type: 'checkLoginStatus', token: loginToken }));
     };
   };
 
   const handleSendUserId = () => {
-    const ws = new WebSocket('ws://localhost:4000');
+    const ws = new WebSocket('ws://localhost:8080');
     ws.onopen = () => {
       ws.send(JSON.stringify({ type: 'sendUserId', userId }));
     };
