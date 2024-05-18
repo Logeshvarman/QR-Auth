@@ -2,14 +2,16 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TextInput, Button, StyleSheet, Alert } from 'react-native';
 import { BarCodeScanner } from 'expo-barcode-scanner';
 import axios from 'axios';
+import { NavigationContainer } from '@react-navigation/native';
+import { createStackNavigator } from '@react-navigation/stack';
 
-const App = () => {
+const Stack = createStackNavigator();
+
+const LoginScreen = ({ navigation }) => {
   const [hasPermission, setHasPermission] = useState(null);
-  const [scanned, setScanned] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [userId, setUserId] = useState(null);
   const ws = useRef(null);
 
   useEffect(() => {
@@ -77,22 +79,12 @@ const App = () => {
   const handleLogin = async () => {
     try {
       const response = await axios.post('http://192.168.1.2:8080/login', { username, password });
-      setUserId(response.data.userId);
+      setIsAuthenticated(true);
+      navigation.navigate('Home');
       Alert.alert('Success', 'Login successful');
     } catch (error) {
       console.error('Login error:', error);
       Alert.alert('Error', error.response?.data?.message || 'Login failed');
-    }
-  };
-
-  const handleBarCodeScanned = ({ data }) => {
-    setScanned(true);
-    try {
-      const qrData = JSON.parse(data);
-      ws.current.send(JSON.stringify({ type: 'auth', userId: qrData.userId }));
-    } catch (error) {
-      console.error('Error parsing QR code data:', error);
-      Alert.alert('Error', 'Invalid QR code');
     }
   };
 
@@ -126,12 +118,47 @@ const App = () => {
         </>
       ) : (
         <BarCodeScanner
-          onBarCodeScanned={scanned ? undefined : handleBarCodeScanned}
+          style={StyleSheet.absoluteFillObject}
+          onBarCodeScanned={() => {}}
+        />
+      )}
+    </View>
+  );
+};
+
+const HomeScreen = () => {
+  const [showScanner, setShowScanner] = useState(false);
+
+  const handleScan = () => {
+    setShowScanner(true);
+  };
+
+  const handleBarCodeScanned = () => {
+    // Handle barcode scanning
+  };
+
+  return (
+    <View style={styles.container}>
+      <Text>Welcome QR auth</Text>
+      <Button title="QAuth" onPress={handleScan} />
+      {showScanner && (
+        <BarCodeScanner
+          onBarCodeScanned={handleBarCodeScanned}
           style={StyleSheet.absoluteFillObject}
         />
       )}
-      {scanned && <Button title="Tap to Scan Again" onPress={() => setScanned(false)} />}
     </View>
+  );
+};
+
+const App = () => {
+  return (
+    <NavigationContainer>
+      <Stack.Navigator initialRouteName="Login">
+        <Stack.Screen name="Login" component={LoginScreen} />
+        <Stack.Screen name="Home" component={HomeScreen} />
+      </Stack.Navigator>
+    </NavigationContainer>
   );
 };
 
