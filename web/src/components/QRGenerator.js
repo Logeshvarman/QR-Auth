@@ -6,6 +6,7 @@ const QRGenerator = () => {
   const [message, setMessage] = useState('');
   const [qrCode, setQrCode] = useState(null);
   const [userData, setUserData] = useState(null); // State to store user data
+  const [userId, setUserId] = useState(null); // State to store user ID
   const ws = useRef(null);
 
   useEffect(() => {
@@ -19,7 +20,9 @@ const QRGenerator = () => {
     };
 
     fetchSessionId();
+  }, []);
 
+  useEffect(() => {
     ws.current = new WebSocket('ws://localhost:8080');
 
     ws.current.onopen = () => {
@@ -30,12 +33,13 @@ const QRGenerator = () => {
       const data = JSON.parse(e.data);
       if (data.type === 'auth_success') {
         setMessage('User authenticated successfully!');
+        setUserId(data.userId); // Set the user ID
         // Fetch user data after authentication success
-        fetchUserData();
+        fetchUserData(qrCode);
       } else if (data.type === 'qr_code_data') {
         console.log('Received QR code data:', data.data); // Handle the received QR code data
         setMessage('QR code scanned successfully!');
-        fetchUserData(data.data); // Fetch user data based on the QR code data
+        fetchUserData(data.data.sessionId); // Fetch user data based on the QR code data
       } else if (data.type === 'error') {
         setMessage(data.message);
       }
@@ -50,19 +54,24 @@ const QRGenerator = () => {
     };
   }, []);
 
-  const fetchUserData = async (qrCodeData) => {
+  const fetchUserData = async (sessionId) => {
     try {
-      const response = await axios.get('http://localhost:8080/verify_qr', {
-        params: { sessionId: qrCodeData.sessionId }, // Pass the sessionId to the server
-      });
+      const response = await axios.get('http://localhost:8080/verify_qr', { sessionId });
       const userDataResponse = response.data.user; // Access user data from the response
       setUserData(userDataResponse); // Set user data to state
       setMessage('QR code verified successfully'); // Update message
     } catch (error) {
-      setMessage('Error fetching user data');
-      console.error('Error fetching user data:', error);
+      if (error.response && error.response.status === 404) {
+        setMessage('User not found');
+      } else if (error.response && error.response.status === 401) {
+        setMessage('User is not authenticated');
+      } else {
+        setMessage('Error fetching user data');
+        console.error('Error fetching user data:', error);
+      }
     }
   };
+  
   
   return (
     <div style={styles.container}>
@@ -76,6 +85,7 @@ const QRGenerator = () => {
           {/* Display other user data here */}
         </div>
       )}
+      {userId && <p>User ID: {userId}</p>}
     </div>
   );
 };
