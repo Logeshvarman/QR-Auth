@@ -9,7 +9,6 @@ const Stack = createStackNavigator();
 
 const LoginScreen = ({ navigation }) => {
   const [hasPermission, setHasPermission] = useState(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const ws = useRef(null);
@@ -58,7 +57,6 @@ const LoginScreen = ({ navigation }) => {
   const handleWebSocketMessage = (jsonData) => {
     if (jsonData.type === 'auth_success') {
       console.log('Authentication successful');
-      setIsAuthenticated(true);
       Alert.alert('Authentication successful');
     } else {
       console.error('Authentication failed:', jsonData.message);
@@ -66,22 +64,14 @@ const LoginScreen = ({ navigation }) => {
     }
   };
 
-  const handleRegister = async () => {
-    try {
-      const response = await axios.post('http://192.168.1.2:8080/register', { username, password });
-      Alert.alert('Success', response.data.message);
-    } catch (error) {
-      console.error('Registration error:', error);
-      Alert.alert('Error', error.response?.data?.message || 'Registration failed');
-    }
-  };
-
   const handleLogin = async () => {
     try {
       const response = await axios.post('http://192.168.1.2:8080/login', { username, password });
-      setIsAuthenticated(true);
-      navigation.navigate('Home');
-      Alert.alert('Success', 'Login successful');
+      if (response.data.userId) {
+        navigation.navigate('Scan', { userId: response.data.userId });
+      } else {
+        Alert.alert('Login failed', 'Invalid credentials');
+      }
     } catch (error) {
       console.error('Login error:', error);
       Alert.alert('Error', error.response?.data?.message || 'Login failed');
@@ -98,56 +88,61 @@ const LoginScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      {!isAuthenticated ? (
-        <>
-          <TextInput
-            style={styles.input}
-            placeholder="Username"
-            value={username}
-            onChangeText={setUsername}
-          />
-          <TextInput
-            style={styles.input}
-            placeholder="Password"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-          />
-          <Button title="Register" onPress={handleRegister} />
-          <Button title="Login" onPress={handleLogin} />
-        </>
-      ) : (
-        <BarCodeScanner
-          style={StyleSheet.absoluteFillObject}
-          onBarCodeScanned={() => {}}
-        />
-      )}
+      <TextInput
+        style={styles.input}
+        placeholder="Username"
+        value={username}
+        onChangeText={setUsername}
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="Password"
+        value={password}
+        onChangeText={setPassword}
+        secureTextEntry
+      />
+      <Button title="Login" onPress={handleLogin} />
     </View>
   );
 };
 
-const HomeScreen = () => {
-  const [showScanner, setShowScanner] = useState(false);
+const ScanScreen = ({ route }) => {
+  const { userId } = route.params;
+  const ws = useRef(null);
 
-  const handleScan = () => {
-    setShowScanner(true);
-  };
+  useEffect(() => {
+    // Initialize WebSocket connection
+    ws.current = new WebSocket('ws://192.168.1.2:8080');
 
-  const handleBarCodeScanned = () => {
-    // Handle barcode scanning
+    ws.current.onopen = () => {
+      console.log('WebSocket connection opened');
+    };
+
+    ws.current.onerror = (error) => {
+      console.log('WebSocket error: ', error);
+      Alert.alert('Error', 'WebSocket connection error');
+    };
+
+    ws.current.onclose = () => {
+      console.log('WebSocket connection closed');
+    };
+
+    return () => {
+      ws.current.close();
+    };
+  }, []);
+
+  const handleBarCodeScanned = ({ type, data }) => {
+    console.log(`QR Code scanned: ${data}`);
+    ws.current.send(JSON.stringify({ type: 'qr_scan', data, userId }));
+    Alert.alert('QR Code Scanned', 'Data has been sent to the server');
   };
 
   return (
-    <View style={styles.container}>
-      <Text>Welcome QR auth</Text>
-      <Button title="QAuth" onPress={handleScan} />
-      {showScanner && (
-        <BarCodeScanner
-          onBarCodeScanned={handleBarCodeScanned}
-          style={StyleSheet.absoluteFillObject}
-        />
-      )}
-    </View>
+    <BarCodeScanner
+      style={StyleSheet.absoluteFillObject}
+      onBarCodeScanned={handleBarCodeScanned}
+    />
   );
 };
 
@@ -156,7 +151,7 @@ const App = () => {
     <NavigationContainer>
       <Stack.Navigator initialRouteName="Login">
         <Stack.Screen name="Login" component={LoginScreen} />
-        <Stack.Screen name="Home" component={HomeScreen} />
+        <Stack.Screen name="Scan" component={ScanScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

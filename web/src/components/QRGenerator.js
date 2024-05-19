@@ -1,58 +1,77 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import QRCode from 'qrcode.react';
-import useWebSocket from 'react-use-websocket';
-import shortUUID from 'short-uuid';
+import axios from 'axios';
 
 const QRGenerator = () => {
-  const [qrCodes, setQrCodes] = useState([]);
-  const { sendMessage, lastMessage } = useWebSocket('ws://192.168.1.2:8080');
-
-  const generateQRCodes = () => {
-    const shortId = shortUUID.uuid();
-    sendMessage(JSON.stringify({ type: 'generate_qr', userId: shortId }));
-  };
+  const [message, setMessage] = useState('');
+  const [qrCode, setQrCode] = useState(null);
+  const [userData, setUserData] = useState(null); // State to store user data
+  const ws = useRef(null);
 
   useEffect(() => {
-    if (lastMessage !== null) {
+    const fetchSessionId = async () => {
       try {
-        const response = JSON.parse(lastMessage.data);
-        if (response.type === 'qr_code') {
-          const qrData = response.url;
-          console.log('QR Data Length:', qrData.length);
-          console.log('QR Data:', qrData);
-
-          
-          const chunkSize = 1000; // Adjust this value based on your needs
-          const chunks = [];
-          for (let i = 0; i < qrData.length; i += chunkSize) {
-            chunks.push(qrData.slice(i, i + chunkSize));
-          }
-          const qrCodes = chunks.map((chunk, index) => (
-            <div key={index} style={styles.qrCodeContainer}>
-              <QRCode
-                value={chunk}
-                size={256}
-                level="H"
-                includeMargin={true}
-                version={40}
-              />
-            </div>
-          ));
-          setQrCodes(qrCodes);
-        }
+        const response = await axios.get('http://localhost:8080/session');
+        setQrCode(response.data.sessionId); // Set the session ID to the qrCode state
       } catch (error) {
-        console.error('Error processing QR code data:', error);
-        alert('Error generating QR code. Please try again.');
+        setMessage('Error fetching session ID');
       }
+    };
+
+    fetchSessionId();
+
+    ws.current = new WebSocket('ws://localhost:8080');
+
+    ws.current.onopen = () => {
+      console.log('WebSocket connection opened');
+    };
+
+    ws.current.onmessage = (e) => {
+      const data = JSON.parse(e.data);
+      if (data.type === 'auth_success') {
+        setMessage('User authenticated successfully!');
+        // Fetch user data after authentication success
+        fetchUserData();
+      } else if (data.type === 'error') {
+        setMessage(data.message);
+      }
+    };
+
+    ws.current.onclose = () => {
+      console.log('WebSocket connection closed');
+    };
+
+    return () => {
+      ws.current.close();
+    };
+  }, []);
+
+  const fetchUserData = async () => {
+    try {
+      const response = await axios.get('http://localhost:8080/user');
+      const userDataResponse = response.data;
+      setUserData(userDataResponse); // Set user data to state
+      console.log('User data response:', userDataResponse); // Log user data response to console
+      console.log('Current userData state:', userData); // Log current user data state to console
+    } catch (error) {
+      setMessage('Error fetching user data');
+      console.error('Error fetching user data:', error); // Log error to console
     }
-  }, [lastMessage]);
+  };
+  
 
   return (
     <div style={styles.container}>
-      <button onClick={generateQRCodes} style={styles.button}>
-        Generate QR Codes
-      </button>
-      {qrCodes}
+      <h1>QR Code Authentication</h1>
+      {qrCode ? <QRCode value={qrCode} size={256} /> : <p>Loading...</p>}
+      {message && <p>{message}</p>}
+      {userData && (
+        <div>
+          <h2>User Data:</h2>
+          <p>Username: {userData.username}</p>
+          {/* Display other user data here */}
+        </div>
+      )}
     </div>
   );
 };
@@ -66,23 +85,6 @@ const styles = {
     height: '100vh',
     backgroundColor: '#f0f0f0',
     fontFamily: 'Arial, sans-serif',
-  },
-  button: {
-    padding: '10px 20px',
-    fontSize: '16px',
-    margin: '20px',
-    cursor: 'pointer',
-    backgroundColor: '#007bff',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '5px',
-  },
-  qrCodeContainer: {
-    marginTop: '20px',
-    padding: '20px',
-    backgroundColor: '#fff',
-    borderRadius: '10px',
-    boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
   },
 };
 
