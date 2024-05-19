@@ -1,4 +1,4 @@
-# QR Code Authentication App
+# QR Code Authentication
 
 This mobile application allows users to authenticate using QR codes. It consists of a login/register screen and a QR code scanning screen.
 
