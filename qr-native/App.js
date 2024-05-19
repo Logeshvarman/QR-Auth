@@ -109,6 +109,7 @@ const LoginScreen = ({ navigation }) => {
 const ScanScreen = ({ route }) => {
   const { userId } = route.params;
   const ws = useRef(null);
+  const [permissionRequested, setPermissionRequested] = useState(false); // State to track if permission has been requested
 
   useEffect(() => {
     // Initialize WebSocket connection
@@ -132,11 +133,26 @@ const ScanScreen = ({ route }) => {
     };
   }, []);
 
-  const handleBarCodeScanned = ({ type, data }) => {
-    console.log(`QR Code scanned: ${data}`);
-    ws.current.send(JSON.stringify({ type: 'qr_scan', data, userId }));
-    Alert.alert('QR Code Scanned', 'Data has been sent to the server');
+  const isValidQRCodeData = (data) => {
+    // Check if the data meets certain criteria to be considered a valid QR code
+    return typeof data === 'string' && data.length > 0; // Example: Check if data is a non-empty string
   };
+
+  const handleBarCodeScanned = ({ type, data }) => {
+    if (!permissionRequested) {
+      setPermissionRequested(true); // Update state to indicate permission request has been shown
+      if (isValidQRCodeData(data)) {
+        console.log('QR Code scanned:', data);
+        // Only send data to the server if it's a valid QR code
+        ws.current.send(JSON.stringify({ type: 'qr_scan', data, userId }));
+        console.log("yep vro!!")
+      } else {
+        // Notify users if an invalid QR code is scanned
+        Alert.alert('Invalid QR Code', 'Please scan a valid QR code');
+      }
+    }
+  };
+  
 
   return (
     <BarCodeScanner

@@ -32,6 +32,10 @@ const QRGenerator = () => {
         setMessage('User authenticated successfully!');
         // Fetch user data after authentication success
         fetchUserData();
+      } else if (data.type === 'qr_code_data') {
+        console.log('Received QR code data:', data.data); // Handle the received QR code data
+        setMessage('QR code scanned successfully!');
+        fetchUserData(data.data); // Fetch user data based on the QR code data
       } else if (data.type === 'error') {
         setMessage(data.message);
       }
@@ -46,20 +50,20 @@ const QRGenerator = () => {
     };
   }, []);
 
-  const fetchUserData = async () => {
+  const fetchUserData = async (qrCodeData) => {
     try {
-      const response = await axios.get('http://localhost:8080/user');
-      const userDataResponse = response.data;
+      const response = await axios.get('http://localhost:8080/verify_qr', {
+        params: { sessionId: qrCodeData.sessionId }, // Pass the sessionId to the server
+      });
+      const userDataResponse = response.data.user; // Access user data from the response
       setUserData(userDataResponse); // Set user data to state
-      console.log('User data response:', userDataResponse); // Log user data response to console
-      console.log('Current userData state:', userData); // Log current user data state to console
+      setMessage('QR code verified successfully'); // Update message
     } catch (error) {
       setMessage('Error fetching user data');
-      console.error('Error fetching user data:', error); // Log error to console
+      console.error('Error fetching user data:', error);
     }
   };
   
-
   return (
     <div style={styles.container}>
       <h1>QR Code Authentication</h1>

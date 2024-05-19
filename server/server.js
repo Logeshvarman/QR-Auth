@@ -83,7 +83,7 @@ app.post('/login', async (req, res) => {
 });
 
 app.get('/session', (req, res) => {
-  const sessionId = new mongoose.Types.ObjectId(); // Or use any unique session generation logic
+  const sessionId = new mongoose.Types.ObjectId(); 
   res.json({ sessionId });
 });
 
@@ -116,26 +116,31 @@ app.post('/verify_qr', async (req, res) => {
       return res.status(401).json({ message: 'User is not authenticated' });
     }
 
-    res.json({ message: 'QR code verified successfully', userId: user._id });
+    console.log(user._id); // Log acknowledgment and user ID
+    res.json({ message: 'QR code verified successfully', user });
   } catch (error) {
     console.error('Error verifying QR code:', error);
     res.status(500).json({ message: 'Error verifying QR code' });
   }
 });
 
+
 // WebSocket connection
 wss.on('connection', (ws) => {
   console.log('New WebSocket connection established');
 
-  // Implement WebSocket authentication using JWT
+  // Implement WebSocket message handling
   ws.on('message', async (message) => {
     const data = JSON.parse(message);
 
     if (data.type === 'auth') {
       try {
         const { token } = data;
+        console.log('Received JWT token:', token); // Log the JWT token
+
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         const { userId } = decoded;
+        console.log('User ID:', userId); // Log the user ID
 
         const user = await User.findById(userId);
 
@@ -151,6 +156,17 @@ wss.on('connection', (ws) => {
       } catch (error) {
         ws.send(JSON.stringify({ type: 'error', message: 'Error during authentication' }));
       }
+    } else if (data.type === 'qr_scan') {
+      console.log('QR code scanned:', data); // Log the scanned QR code data
+      // Acknowledge the receipt of the QR code data
+      ws.send(JSON.stringify({ type: 'qr_scan_ack' }));
+
+      // Broadcast the QR code data to all connected web app clients
+      wss.clients.forEach((client) => {
+        if (client !== ws && client.readyState === WebSocket.OPEN) {
+          client.send(JSON.stringify({ type: 'qr_code_data', data: data }));
+        }
+      });
     }
   });
 
@@ -158,6 +174,9 @@ wss.on('connection', (ws) => {
     console.log('WebSocket connection closed');
   });
 });
+
+
+
 
 server.listen(process.env.PORT || 8080, () => {
   console.log('Server is listening on port', process.env.PORT || 8080);
