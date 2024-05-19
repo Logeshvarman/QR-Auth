@@ -24,4 +24,19 @@ This mobile application allows users to authenticate using QR codes. It consists
 1. Clone the repository:
 
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/Logeshvarman/QR-Auth
+
+2. Install dependencies for native app , server and web app:
+
+   ```bash
+   npm install
+
+3. Start 
+   ```bash
+   npm start
+
+## License
+
+This project is licensed under the [MIT License](LICENSE) - see the [LICENSE](LICENSE) file for details.
+
+
