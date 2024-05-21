@@ -18,7 +18,7 @@ const wss = new WebSocket.Server({ server });
 
 // Middleware
 app.use(bodyParser.json());
-app.use(cors('http://localhost:3000'));
+app.use(cors());
 
 // Rate limiting for /login and /register
 const loginLimiter = rateLimit({

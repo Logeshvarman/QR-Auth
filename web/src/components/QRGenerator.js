@@ -5,16 +5,17 @@ import axios from 'axios';
 const QRGenerator = () => {
   const [message, setMessage] = useState('');
   const [qrCode, setQrCode] = useState(null);
-  const [userData, setUserData] = useState(null); // State to store user data
-  const [userId, setUserId] = useState(null); // State to store user ID
+  const [userData, setUserData] = useState(null); 
+  const [userId, setUserId] = useState(null); 
   const ws = useRef(null);
 
   useEffect(() => {
     const fetchSessionId = async () => {
       try {
         const response = await axios.get('http://localhost:8080/session');
-        setQrCode(response.data.sessionId); // Set the session ID to the qrCode state
+        setQrCode(response.data.sessionId);
       } catch (error) {
+        console.error('Error fetching session ID:', error);
         setMessage('Error fetching session ID');
       }
     };
@@ -37,12 +38,13 @@ const QRGenerator = () => {
         fetchUserData(data.userId);
       } else if (data.type === 'qr_scan_ack') {
         setMessage('QR code scanned successfully!');
-        fetchUserData(data.userId); // Call fetchUserData with the userId from the ack message
+        fetchUserData(userId); // Change to fetchUserData(userId)
       } else if (data.type === 'qr_code_data') {
         console.log('Received QR code data:', data.data);
-        fetchUserData(data.data.userId); // Call fetchUserData with the userId from the QR code data
+        fetchUserData(data.data.userId);
       } else if (data.type === 'error') {
         setMessage(data.message);
+        console.error('Error message:', data.message);
       }
     };
 
@@ -53,7 +55,7 @@ const QRGenerator = () => {
     return () => {
       ws.current.close();
     };
-  }, []);
+  }, [userId]);
 
   const fetchUserData = async (userId) => {
     try {

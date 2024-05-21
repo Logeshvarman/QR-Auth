@@ -2,7 +2,9 @@
   "expo": {
     "name": "qr-native",
     "slug": "qr-native",
-    "plugins": ["expo-barcode-scanner"],
+    "plugins": [
+      "expo-camera"
+      ],
     "version": "1.0.0"
   },
   "name": "qr-native"

@@ -68,13 +68,12 @@ const LoginScreen = ({ navigation }) => {
     try {
       const response = await axios.post('http://192.168.1.2:8080/login', { username, password });
       if (response.data.userId) {
-        navigation.navigate('Scan', { userId: response.data.userId });
+        navigation.navigate('Home', { userId: response.data.userId, username });
       } else {
         Alert.alert('Login failed', 'Invalid credentials');
       }
     } catch (error) {
       console.error('Login error:', error);
-     
       Alert.alert('Error', error.response?.data?.message || 'Login failed');
     }
   };
@@ -108,14 +107,74 @@ const LoginScreen = ({ navigation }) => {
       <TouchableOpacity style={styles.button} onPress={handleLogin}>
         <Text style={styles.buttonText}>Login</Text>
       </TouchableOpacity>
+      <TouchableOpacity onPress={() => navigation.navigate('Register')}>
+        <Text style={styles.linkText}>Don't have an account? Register</Text>
+      </TouchableOpacity>
+    </View>
+  );
+};
+
+const RegisterScreen = ({ navigation }) => {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+
+  const handleRegister = async () => {
+    try {
+      const response = await axios.post('http://192.168.1.2:8080/register', { username, password });
+      if (response.data.userId) {
+        Alert.alert('Registration successful', 'You can now log in.');
+        navigation.navigate('Login');
+      } else {
+        Alert.alert('Registration failed', 'Please try again.');
+      }
+    } catch (error) {
+      console.error('Registration error:', error);
+      Alert.alert('Error', error.response?.data?.message || 'Registration failed');
+    }
+  };
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>Register</Text>
+      <TextInput
+        style={styles.input}
+        placeholder="Username"
+        value={username}
+        onChangeText={setUsername}
+        placeholderTextColor="#aaa"
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="Password"
+        value={password}
+        onChangeText={setPassword}
+        secureTextEntry
+        placeholderTextColor="#aaa"
+      />
+      <TouchableOpacity style={styles.button} onPress={handleRegister}>
+        <Text style={styles.buttonText}>Register</Text>
+      </TouchableOpacity>
+    </View>
+  );
+};
+
+const HomeScreen = ({ route, navigation }) => {
+  const { username, userId } = route.params;
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>Welcome, {username}!</Text>
+      <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('Scan', { userId, username })}>
+        <Text style={styles.buttonText}>Scan QR Code</Text>
+      </TouchableOpacity>
     </View>
   );
 };
 
 const ScanScreen = ({ route }) => {
-  const { userId } = route.params;
+  const { userId, username } = route.params;
   const ws = useRef(null);
-  const [permissionRequested, setPermissionRequested] = useState(false); // State to track if permission has been requested
+  const [permissionRequested, setPermissionRequested] = useState(false);
 
   useEffect(() => {
     // Initialize WebSocket connection
@@ -151,7 +210,6 @@ const ScanScreen = ({ route }) => {
         console.log('QR Code scanned:', data);
         // Only send data to the server if it's a valid QR code
         ws.current.send(JSON.stringify({ type: 'qr_scan', data, userId }));
-        console.log("yep vro!!")
       } else {
         // Notify users if an invalid QR code is scanned
         Alert.alert('Invalid QR Code', 'Please scan a valid QR code');
@@ -161,7 +219,7 @@ const ScanScreen = ({ route }) => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Scan QR Code</Text>
+      <Text style={styles.title}>Welcome, {username}!</Text>
       <BarCodeScanner
         style={styles.scanner}
         onBarCodeScanned={handleBarCodeScanned}
@@ -175,6 +233,8 @@ const App = () => {
     <NavigationContainer>
       <Stack.Navigator initialRouteName="Login">
         <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="Register" component={RegisterScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
         <Stack.Screen name="Scan" component={ScanScreen} options={{ headerShown: false }} />
       </Stack.Navigator>
     </NavigationContainer>
@@ -220,6 +280,10 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '70%',
   },
-});
-
-export default App;
+  linkText: {
+    color: '#007BFF',
+    marginTop: 20,
+    },
+    });
+    
+    export default App;

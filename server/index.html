@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QR Code Authentication</title>
+</head>
+<body>
+  <div id="app">
+    <h1>QR Code Authentication</h1>
+    <div v-if="qrCode">
+      <img :src="qrCode" alt="QR Code" />
+    </div>
+    <p v-if="message">{{ message }}</p>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/vue@2"></script>
+  <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+  <script>
+    new Vue({
+      el: '#app',
+      data: {
+        qrCode: '',
+        message: ''
+      },
+      mounted() {
+        this.fetchQRCode();
+      },
+      methods: {
+        async fetchQRCode() {
+          try {
+            const response = await axios.post('http://localhost:8080/generate_qr');
+            this.qrCode = response.data.url;
+          } catch (error) {
+            console.error('Error fetching QR code:', error);
+            this.message = 'Error fetching QR code';
+          }
+        }
+      }
+    });
+  </script>
+</body>
+</html>
