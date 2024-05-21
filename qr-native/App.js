@@ -217,6 +217,26 @@ const ScanScreen = ({ route }) => {
     }
   };
 
+  const ProfileScreen = () => {
+    // Profile screen implementation
+    return (
+      <View style={styles.container}>
+        <Text style={styles.title}>Profile</Text>
+        {/* Add profile related content here */}
+      </View>
+    );
+  };
+  
+  const LoginDataScreen = () => {
+    // Login data screen implementation
+    return (
+      <View style={styles.container}>
+        <Text style={styles.title}>Login Data</Text>
+        {/* Add login data related content here */}
+      </View>
+    );
+  };
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Welcome, {username}!</Text>
