@@ -33,13 +33,14 @@ const QRGenerator = () => {
       const data = JSON.parse(e.data);
       if (data.type === 'auth_success') {
         setMessage('User authenticated successfully!');
-        setUserId(data.userId); // Set the user ID
-        // Fetch user data after authentication success
-        fetchUserData(qrCode);
-      } else if (data.type === 'qr_code_data') {
-        console.log('Received QR code data:', data.data); // Handle the received QR code data
+        setUserId(data.userId);
+        fetchUserData(data.userId);
+      } else if (data.type === 'qr_scan_ack') {
         setMessage('QR code scanned successfully!');
-        fetchUserData(data.data.sessionId); // Fetch user data based on the QR code data
+        fetchUserData(data.userId); // Call fetchUserData with the userId from the ack message
+      } else if (data.type === 'qr_code_data') {
+        console.log('Received QR code data:', data.data);
+        fetchUserData(data.data.userId); // Call fetchUserData with the userId from the QR code data
       } else if (data.type === 'error') {
         setMessage(data.message);
       }
@@ -54,12 +55,12 @@ const QRGenerator = () => {
     };
   }, []);
 
-  const fetchUserData = async (sessionId) => {
+  const fetchUserData = async (userId) => {
     try {
-      const response = await axios.get('http://localhost:8080/verify_qr', { sessionId });
-      const userDataResponse = response.data.user; // Access user data from the response
-      setUserData(userDataResponse); // Set user data to state
-      setMessage('QR code verified successfully'); // Update message
+      const response = await axios.post('http://localhost:8080/verify_qr', { userId });
+      const userDataResponse = response.data.user;
+      setUserData(userDataResponse);
+      setMessage('QR code verified successfully');
     } catch (error) {
       if (error.response && error.response.status === 404) {
         setMessage('User not found');
@@ -71,8 +72,7 @@ const QRGenerator = () => {
       }
     }
   };
-  
-  
+
   return (
     <div style={styles.container}>
       <h1>QR Code Authentication</h1>
@@ -99,6 +99,8 @@ const styles = {
     height: '100vh',
     backgroundColor: '#f0f0f0',
     fontFamily: 'Arial, sans-serif',
+    padding: '20px',
+    boxSizing: 'border-box',
   },
 };
 

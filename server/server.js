@@ -18,12 +18,12 @@ const wss = new WebSocket.Server({ server });
 
 // Middleware
 app.use(bodyParser.json());
-app.use(cors());
+app.use(cors('http://localhost:3000'));
 
 // Rate limiting for /login and /register
 const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
+  windowMs: 15 * 60 * 1000, 
+  max: 100, 
 });
 
 app.use('/login', loginLimiter);
@@ -70,44 +70,55 @@ app.post('/login', async (req, res) => {
     }
 
     // Compare the provided password with the hashed password
-    const isPasswordValid = await bcrypt.compare(password, user.password);
+    const isPasswordValid = bcrypt.compare(password, user.password);
 
     if (!isPasswordValid) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    res.json({ message: 'Login successful', userId: user._id });
+    // Generate a JWT token
+    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET|| "mysecretkey", { expiresIn: '1h' });
+
+    res.json({ message: 'Login successful', userId: user._id, token });
   } catch (error) {
     res.status(500).json({ message: 'Error logging in', error });
   }
 });
 
 app.get('/session', (req, res) => {
-  const sessionId = new mongoose.Types.ObjectId(); 
+  const sessionId = new mongoose.Types.ObjectId();
   res.json({ sessionId });
 });
 
 // Generate QR code endpoint
 app.post('/generate_qr', async (req, res) => {
-  const { sessionId } = req.body;
+  const { sessionId, userId } = req.body;
 
   try {
-    const qrCodeData = JSON.stringify({ sessionId });
+    if (!sessionId || !userId) {
+      return res.status(400).json({ message: 'sessionId and userId are required' });
+    }
+
+    const qrCodeData = JSON.stringify({ sessionId, userId });
     const url = await QRCode.toDataURL(qrCodeData);
+    console.log('Generated QR code URL:', url); // Add a console log to check the generated QR code URL
     res.json({ url });
   } catch (error) {
     console.error('Error generating QR code:', error);
-    res.status(500).json({ message: 'Error generating QR code' });
+    res.status(500).json({ message: 'Error generating QR code', error });
   }
 });
 
+
 // Verify QR code endpoint
 app.post('/verify_qr', async (req, res) => {
-  const { sessionId } = req.body;
+  const { sessionId, userId } = req.body;
 
   try {
-    const user = await User.findOne({ _id: sessionId });
-
+    if (!sessionId || !userId) {
+      return res.status(400).json({ message: 'sessionId and userId are required' });
+    }
+    const user = await User.findOne({ _id: userId });
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -116,14 +127,13 @@ app.post('/verify_qr', async (req, res) => {
       return res.status(401).json({ message: 'User is not authenticated' });
     }
 
-    console.log(user._id); // Log acknowledgment and user ID
+    console.log('User authenticated:', user.username);
     res.json({ message: 'QR code verified successfully', user });
   } catch (error) {
     console.error('Error verifying QR code:', error);
-    res.status(500).json({ message: 'Error verifying QR code' });
+    res.status(500).json({ message: 'Error verifying QR code', error });
   }
 });
-
 
 // WebSocket connection
 wss.on('connection', (ws) => {
@@ -149,9 +159,6 @@ wss.on('connection', (ws) => {
           return;
         }
 
-        // Join a room based on the user's authentication status
-        ws.join(`authenticated:${user._id}`);
-
         ws.send(JSON.stringify({ type: 'auth_success', userId: user._id }));
       } catch (error) {
         ws.send(JSON.stringify({ type: 'error', message: 'Error during authentication' }));
@@ -174,9 +181,6 @@ wss.on('connection', (ws) => {
     console.log('WebSocket connection closed');
   });
 });
-
-
-
 
 server.listen(process.env.PORT || 8080, () => {
   console.log('Server is listening on port', process.env.PORT || 8080);
